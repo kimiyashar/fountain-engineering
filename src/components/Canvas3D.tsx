@@ -106,14 +106,14 @@ export default function Canvas3D() {
       <color attach="background" args={[env.bg]} />
       <fog attach="fog" args={[env.bg, 26, 70]} />
 
-      <PerspectiveCamera makeDefault position={[10, 8, 10]} fov={45} />
+      <PerspectiveCamera makeDefault position={[8, 6, 8]} fov={45} />
       <OrbitControls
         makeDefault
         enablePan
         minDistance={4}
         maxDistance={34}
         maxPolarAngle={Math.PI / 2.03}
-        target={[0, 0.8, 0]}
+        target={[0, 0.7, 0]}
       />
 
       <ambientLight intensity={env.ambient} />

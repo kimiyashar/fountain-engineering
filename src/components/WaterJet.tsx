@@ -14,7 +14,7 @@ interface WaterJetProps {
   color?: string;
 }
 
-const PARTICLE_COUNT = 900;
+const PARTICLE_COUNT = 1100;
 const GRAVITY = 9.8;
 
 // A single water jet rendered as a GPU point cloud driven by simple ballistic
