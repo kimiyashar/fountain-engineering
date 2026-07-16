@@ -1,7 +1,14 @@
 'use client';
 
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { PerspectiveCamera, OrbitControls, Grid, ContactShadows } from '@react-three/drei';
+import {
+  PerspectiveCamera,
+  OrbitControls,
+  Grid,
+  ContactShadows,
+  Environment,
+  Lightformer,
+} from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFountainStore, Background } from '@/store';
@@ -106,14 +113,14 @@ export default function Canvas3D() {
       <color attach="background" args={[env.bg]} />
       <fog attach="fog" args={[env.bg, 26, 70]} />
 
-      <PerspectiveCamera makeDefault position={[8, 6, 8]} fov={45} />
+      <PerspectiveCamera makeDefault position={[10.5, 7.5, 10.5]} fov={42} />
       <OrbitControls
         makeDefault
         enablePan
         minDistance={4}
-        maxDistance={34}
+        maxDistance={40}
         maxPolarAngle={Math.PI / 2.03}
-        target={[0, 0.7, 0]}
+        target={[0, 1.5, 0]}
       />
 
       <ambientLight intensity={env.ambient} />
@@ -156,6 +163,14 @@ export default function Canvas3D() {
       />
 
       <ContactShadows position={[0, 0.02, 0]} opacity={0.35} scale={30} blur={2.2} far={8} />
+
+      {/* In-scene reflections for the marble & water (no network fetch). */}
+      <Environment resolution={256} frames={1} background={false}>
+        <Lightformer form="rect" intensity={1.6} position={[0, 8, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[14, 14, 1]} color="#ffffff" />
+        <Lightformer form="rect" intensity={1.1} position={[6, 4, 6]} rotation={[0, -Math.PI / 4, 0]} scale={[8, 6, 1]} color="#dcefff" />
+        <Lightformer form="rect" intensity={0.9} position={[-6, 3, -4]} rotation={[0, Math.PI / 3, 0]} scale={[8, 5, 1]} color="#fff2dc" />
+        <Lightformer form="ring" intensity={0.6} position={[0, 2, -8]} scale={4} color="#bcd6ff" />
+      </Environment>
 
       {background === 'rain' && <Rain />}
 

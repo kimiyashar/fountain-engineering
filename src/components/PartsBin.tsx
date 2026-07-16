@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CATALOG, CATEGORIES, CatalogItem, PartCategory } from '@/catalog';
 import { useFountainStore } from '@/store';
+import { renderFountainThumbnails } from '@/thumbnails';
 
 export default function PartsBin() {
   const [active, setActive] = useState<PartCategory | 'all'>('all');
   const addPart = useFountainStore((s) => s.addPart);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+
+  // Render real pictures of every fountain once, on the client.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setThumbs(renderFountainThumbnails()));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const items =
     active === 'all' ? CATALOG : CATALOG.filter((c) => c.category === active);
@@ -72,14 +80,19 @@ export default function PartsBin() {
         }}
       >
         {items.map((item) => (
-          <Tile key={item.id} item={item} onAdd={() => addPart(item.id)} />
+          <Tile
+            key={item.id}
+            item={item}
+            thumb={item.category === 'base' ? thumbs[item.variant] : undefined}
+            onAdd={() => addPart(item.id)}
+          />
         ))}
       </div>
     </aside>
   );
 }
 
-function Tile({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
+function Tile({ item, thumb, onAdd }: { item: CatalogItem; thumb?: string; onAdd: () => void }) {
   return (
     <div
       className="tile"
@@ -101,7 +114,11 @@ function Tile({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
       }}
       title={`${item.name} — drag onto the workplane or click to add`}
     >
-      <span className="tile-emoji">{item.emoji}</span>
+      {thumb ? (
+        <img className="tile-thumb" src={thumb} alt={item.name} draggable={false} />
+      ) : (
+        <span className="tile-emoji">{item.emoji}</span>
+      )}
       <span className="tile-label">{item.name}</span>
     </div>
   );

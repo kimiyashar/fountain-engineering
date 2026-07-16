@@ -73,6 +73,13 @@ body {
   line-height: 1;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18));
 }
+.tile-thumb {
+  width: 100%;
+  height: 78%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.28));
+  pointer-events: none;
+}
 .tile-label {
   font-size: 11.5px;
   font-weight: 700;

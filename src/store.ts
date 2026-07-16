@@ -66,7 +66,7 @@ function yForType(type: PartCategory): number {
 // A pleasant starting design so the canvas is never empty and boring.
 function makeInitialParts(): FountainPart[] {
   counter = 0;
-  const base = CATALOG_BY_ID['round-bowl'];
+  const base = CATALOG_BY_ID['three-tier'];
   return [
     {
       id: uid('p'),
