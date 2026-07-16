@@ -19,12 +19,35 @@ export interface WaterRing {
 }
 
 export interface FountainSpec {
-  build: (stoneColor: string) => THREE.Group;
-  waters: WaterRing[];
-  selR: number;
-  height: number;
-  // Where a centered "Tall Jet" naturally sits (top basin) — used for nice defaults.
-  topJet: [number, number, number];
+  // Number of independently width-adjustable layers (0 = only overall size).
+  tierCount: number;
+  layerLabels: string[];
+  build: (stoneColor: string, scales?: number[]) => THREE.Group;
+  measure: (scales?: number[]) => { waters: WaterRing[]; selR: number; height: number };
+}
+
+function labelsFor(n: number): string[] {
+  if (n <= 1) return ['Width'];
+  if (n === 2) return ['Bottom', 'Top'];
+  if (n === 3) return ['Bottom', 'Middle', 'Top'];
+  return Array.from({ length: n }, (_, i) =>
+    i === 0 ? 'Base' : i === n - 1 ? 'Top' : `Tier ${i + 1}`
+  );
+}
+
+// Wrap a fixed (non-tiered) fountain into the FountainSpec shape.
+function staticSpec(
+  build: (c: string) => THREE.Group,
+  waters: WaterRing[],
+  selR: number,
+  height: number
+): FountainSpec {
+  return {
+    tierCount: 0,
+    layerLabels: [],
+    build: (c) => build(c),
+    measure: () => ({ waters, selR, height }),
+  };
 }
 
 type Pt = [number, number];
@@ -203,38 +226,44 @@ function tiered(
   const fluteDepth = opts.fluteDepth ?? 0.035;
   const hasPlinth = opts.plinth !== false;
 
-  // ---- Pure layout pass: figure out each tier's base y, lip height, water. ----
   type Tier = { r: number; y: number; lipH: number; floorH: number };
-  const tiers: Tier[] = [];
-  let y = hasPlinth ? 0.55 : 0;
-  radii.forEach((r, i) => {
-    const lipH = 0.55 + r * 0.28;
-    const floorH = 0.26 + r * 0.06;
-    tiers.push({ r, y, lipH, floorH });
-    const topOfBowl = y + lipH;
-    if (i < radii.length - 1) {
-      const nextR = radii[i + 1];
-      const stemH = 0.55 + nextR * 0.5;
-      y = topOfBowl - 0.02 + stemH;
-    } else {
-      y = topOfBowl;
-    }
-  });
-  const topBowl = tiers[tiers.length - 1];
-  const height = topBowl.y + topBowl.lipH + (opts.statue ? 1.4 : 0.6);
-  const waters: WaterRing[] = tiers.map((t) => {
-    const w = waterFor(t.r, t.lipH, 0.16, t.floorH);
-    return { y: t.y + w.y, r: w.r };
-  });
 
-  const build = (stoneColor: string) => {
+  // Pure layout from EFFECTIVE (per-tier scaled) radii.
+  const layout = (scales?: number[]) => {
+    const eff = radii.map((r, i) => r * (scales?.[i] ?? 1));
+    const tiers: Tier[] = [];
+    let y = hasPlinth ? 0.55 : 0;
+    eff.forEach((r, i) => {
+      const lipH = 0.55 + r * 0.28;
+      const floorH = 0.26 + r * 0.06;
+      tiers.push({ r, y, lipH, floorH });
+      const topOfBowl = y + lipH;
+      if (i < eff.length - 1) {
+        const nextR = eff[i + 1];
+        const stemH = 0.55 + nextR * 0.5;
+        y = topOfBowl - 0.02 + stemH;
+      } else {
+        y = topOfBowl;
+      }
+    });
+    const top = tiers[tiers.length - 1];
+    const height = top.y + top.lipH + (opts.statue ? 1.4 : 0.6);
+    const waters: WaterRing[] = tiers.map((t) => {
+      const w = waterFor(t.r, t.lipH, 0.16, t.floorH);
+      return { y: t.y + w.y, r: w.r };
+    });
+    return { eff, tiers, height, waters, selR: eff[0] + 0.4 };
+  };
+
+  const build = (stoneColor: string, scales?: number[]) => {
+    const { eff, tiers } = layout(scales);
     const mat = marble(stoneColor);
     const rim = marble(new THREE.Color(stoneColor).multiplyScalar(0.92).getStyle());
     const g = new THREE.Group();
 
     if (hasPlinth) {
-      g.add(lathe(plinthProfile(radii[0] + 0.25), rim, { segments: seg, y: 0 }));
-      g.add(beadRing(mat, radii[0] + 0.02, 0.5, Math.max(16, Math.round(radii[0] * 10))));
+      g.add(lathe(plinthProfile(eff[0] + 0.25), rim, { segments: seg, y: 0 }));
+      g.add(beadRing(mat, eff[0] + 0.02, 0.5, Math.max(16, Math.round(eff[0] * 10))));
     }
 
     tiers.forEach((t, i) => {
@@ -250,7 +279,7 @@ function tiered(
 
       const topOfBowl = t.y + t.lipH;
       if (i < tiers.length - 1) {
-        const nextR = radii[i + 1];
+        const nextR = eff[i + 1];
         const stemH = 0.55 + nextR * 0.5;
         g.add(lathe(stemProfile(stemH, Math.max(0.32, nextR * 0.7)), mat, { segments: seg, flutes, fluteDepth: 0.028, y: topOfBowl - 0.02 }));
       } else if (opts.statue) {
@@ -270,11 +299,13 @@ function tiered(
   };
 
   return {
+    tierCount: radii.length,
+    layerLabels: labelsFor(radii.length),
     build,
-    waters,
-    selR: radii[0] + 0.4,
-    height,
-    topJet: [0, waters[waters.length - 1].y, 0],
+    measure: (scales) => {
+      const L = layout(scales);
+      return { waters: L.waters, selR: L.selR, height: L.height };
+    },
   };
 }
 
@@ -309,13 +340,7 @@ function squareBasin(size: number): FountainSpec {
     });
     return g;
   };
-  return {
-    build,
-    waters: [{ y: 0.74, r: half - 0.12, square: true }],
-    selR: half + 0.4,
-    height: 1.4,
-    topJet: [0, 0.9, 0],
-  };
+  return staticSpec(build, [{ y: 0.74, r: half - 0.12, square: true }], half + 0.4, 1.4);
 }
 
 // A grand low octagonal pool with a central tiered fountain.
@@ -342,8 +367,11 @@ function grandPool(): FountainSpec {
     });
     return g;
   };
-  const waters: WaterRing[] = [{ y: 0.28, r: 3.0 }, ...inner.waters.map((w) => ({ ...w, y: w.y + 0.18 }))];
-  return { build, waters, selR: 3.6, height: 3.2, topJet: [0, 1.4, 0] };
+  const waters: WaterRing[] = [
+    { y: 0.28, r: 3.0 },
+    ...inner.measure().waters.map((w) => ({ ...w, y: w.y + 0.18 })),
+  ];
+  return staticSpec(build, waters, 3.6, 3.2);
 }
 
 // A wall fountain: a back wall with a lion spout falling into a half basin.
@@ -387,13 +415,7 @@ function wallFountain(): FountainSpec {
     });
     return g;
   };
-  return {
-    build,
-    waters: [waterFor(1.9, 0.8, 0.18, 0.34)],
-    selR: 2.2,
-    height: 3.6,
-    topJet: [0, 0.5, 0],
-  };
+  return staticSpec(build, [waterFor(1.9, 0.8, 0.18, 0.34)], 2.2, 3.6);
 }
 
 // An obelisk rising from a square basin.
@@ -421,7 +443,7 @@ function obelisk(): FountainSpec {
     });
     return g;
   };
-  return { build, waters: [{ y: 0.74, r: 1.45, square: true }], selR: 2.0, height: 4.9, topJet: [0, 0.9, 0] };
+  return staticSpec(build, [{ y: 0.74, r: 1.45, square: true }], 2.0, 4.9);
 }
 
 // Rectangular cascade of stepped basins (modern reflecting-pool style).
@@ -448,7 +470,7 @@ function cascade(): FountainSpec {
     }
     return g;
   };
-  return { build, waters, selR: 2.4, height: 1.8, topJet: [0, 0.6, 0] };
+  return staticSpec(build, waters, 2.4, 1.8);
 }
 
 // ---------------------------------------------------------------------------

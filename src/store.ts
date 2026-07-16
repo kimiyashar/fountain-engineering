@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { CATALOG_BY_ID, PartCategory } from './catalog';
+import { getFountainSpec } from './fountainModels';
 
 export interface FountainPart {
   id: string;
@@ -11,6 +12,7 @@ export interface FountainPart {
   rotation: [number, number, number];
   scale: [number, number, number];
   color?: string;
+  tierScales?: number[]; // per-layer width multipliers for fountains
 }
 
 export type Background =
@@ -78,6 +80,7 @@ function makeInitialParts(): FountainPart[] {
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
       color: base.color,
+      tierScales: new Array(getFountainSpec(base.variant).tierCount).fill(1),
     },
   ];
 }
@@ -111,6 +114,10 @@ export const useFountainStore = create<FountainStore>((set, get) => ({
       rotation: [0, 0, 0],
       scale: item.scale ?? [1, 1, 1],
       color: item.color,
+      tierScales:
+        item.category === 'base'
+          ? new Array(getFountainSpec(item.variant).tierCount).fill(1)
+          : undefined,
     };
     set((state) => ({
       past: [...state.past, state.design.parts],

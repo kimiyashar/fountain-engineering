@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react';
 import { CATALOG, CATEGORIES, CatalogItem, PartCategory } from '@/catalog';
 import { useFountainStore } from '@/store';
-import { renderFountainThumbnails } from '@/thumbnails';
+import { renderAllThumbnails } from '@/thumbnails';
 
 export default function PartsBin() {
   const [active, setActive] = useState<PartCategory | 'all'>('all');
   const addPart = useFountainStore((s) => s.addPart);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
 
-  // Render real pictures of every fountain once, on the client.
+  // Render a real picture of every part once, on the client.
   useEffect(() => {
-    const id = requestAnimationFrame(() => setThumbs(renderFountainThumbnails()));
+    const id = requestAnimationFrame(() => setThumbs(renderAllThumbnails()));
     return () => cancelAnimationFrame(id);
   }, []);
 
@@ -75,17 +75,13 @@ export default function PartsBin() {
           padding: 16,
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
+          gridAutoRows: '124px',
           gap: 12,
           alignContent: 'start',
         }}
       >
         {items.map((item) => (
-          <Tile
-            key={item.id}
-            item={item}
-            thumb={item.category === 'base' ? thumbs[item.variant] : undefined}
-            onAdd={() => addPart(item.id)}
-          />
+          <Tile key={item.id} item={item} thumb={thumbs[item.id]} onAdd={() => addPart(item.id)} />
         ))}
       </div>
     </aside>
@@ -115,11 +111,11 @@ function Tile({ item, thumb, onAdd }: { item: CatalogItem; thumb?: string; onAdd
       title={`${item.name} — drag onto the workplane or click to add`}
     >
       {thumb ? (
-        <img className="tile-thumb" src={thumb} alt={item.name} draggable={false} />
+        <img className="tile-img" src={thumb} alt={item.name} draggable={false} />
       ) : (
         <span className="tile-emoji">{item.emoji}</span>
       )}
-      <span className="tile-label">{item.name}</span>
+      <span className="tile-label tile-label-overlay">{item.name}</span>
     </div>
   );
 }

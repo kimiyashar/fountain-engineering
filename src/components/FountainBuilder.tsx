@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Canvas3D from './Canvas3D';
 import PartsBin from './PartsBin';
 import TopBar from './TopBar';
@@ -10,6 +10,25 @@ import { useFountainStore } from '@/store';
 
 export default function FountainBuilder() {
   const count = useFountainStore((s) => s.design.parts.length);
+
+  // Keyboard shortcuts: Backspace/Delete removes the selected part, ⌘/Ctrl+Z undoes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+      if (typing) return;
+      const st = useFountainStore.getState();
+      if ((e.key === 'Backspace' || e.key === 'Delete') && st.selectedPartId) {
+        e.preventDefault();
+        st.removePart(st.selectedPartId);
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        st.undo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: 'var(--panel-soft)' }}>
